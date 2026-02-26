@@ -2,6 +2,11 @@ import SwiftUI
 import UIKit
 import PlaygroundSupport
 
+// Define custom maroon color (add this)
+extension Color {
+    static let maroon = Color(red: 0.5, green: 0.0, blue: 0.0)  // #800000 - deep maroon
+}
+
 // MARK: - Model
 struct TasbeehEntry: Codable, Identifiable {
     let id = UUID()
@@ -11,7 +16,7 @@ struct TasbeehEntry: Codable, Identifiable {
 
 // MARK: - Root Container
 struct TasbeehAppView: View {
-    @State private var selectedTab: Tab = .tasbeeh  // Start on Tasbeeh
+    @State private var selectedTab: Tab = .tasbeeh
     
     enum Tab {
         case learn, tasbeeh, progress
@@ -46,7 +51,7 @@ struct TasbeehAppView: View {
             }
             .ignoresSafeArea(.keyboard)
         }
-        .accentColor(.green)
+        .accentColor(.maroon)
         .preferredColorScheme(.light)
     }
     
@@ -71,7 +76,7 @@ struct TasbeehAppView: View {
                 Text(label)
                     .font(.caption2)
             }
-            .foregroundColor(selectedTab == tab ? .green : .gray)
+            .foregroundColor(selectedTab == tab ? .maroon : .gray)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(PlainButtonStyle())
@@ -85,7 +90,7 @@ struct EducationView: View {
             VStack(spacing: 28) {
                 Text("Tasbeeh App")
                     .font(.largeTitle.bold())
-                    .foregroundColor(.green)
+                    .foregroundColor(.maroon)
                     .padding(.top, 40)
                 
                 Text("What is Tasbeeh?")
@@ -120,16 +125,14 @@ struct EducationView: View {
             }
             .padding(.horizontal)
         }
-        .background(LinearGradient(colors: [.white, Color.green.opacity(0.08)], startPoint: .top, endPoint: .bottom))
+        .background(LinearGradient(colors: [.white, Color.maroon.opacity(0.08)], startPoint: .top, endPoint: .bottom))
     }
 }
 
-// MARK: - Counter View – larger tasbih_beads image
-// MARK: - Counter View – saves to entries for ProgressView
+// MARK: - Counter View
 struct CounterView: View {
     @AppStorage("tasbeeh_currentCount") private var currentCount: Int = 0
     @AppStorage("tasbeeh_lastDate") private var lastDateString: String = ""
-    @AppStorage("tasbeeh_entries") private var entriesData: Data = Data()  // ← Add this to save here
     
     let phrases = ["SubhanAllah", "Alhamdulillah", "Allahu Akbar"]
     @State private var currentPhraseIndex = 0
@@ -139,7 +142,6 @@ struct CounterView: View {
             Spacer(minLength: 60)
             
             ZStack {
-                // Your beads image – unchanged
                 if let url = Bundle.main.url(forResource: "tasbih_beads", withExtension: "png"),
                    let uiImage = UIImage(contentsOfFile: url.path) {
                     Image(uiImage: uiImage)
@@ -150,7 +152,6 @@ struct CounterView: View {
                         .foregroundColor(.red)
                 }
                 
-                // Tappable overlay – unchanged
                 Rectangle()
                     .fill(Color.clear)
                     .frame(width: 580, height: 480)
@@ -162,15 +163,12 @@ struct CounterView: View {
                         if currentCount % 33 == 0 && currentCount > 0 {
                             currentPhraseIndex = (currentPhraseIndex + 1) % 3
                         }
-                        
-                        saveCurrentCountToEntries()  // ← NEW: save every tap
                     }
                 
-                // Central count + phrase – unchanged
                 VStack(spacing: 8) {
                     Text("\(currentCount)")
                         .font(.system(size: 80, weight: .bold, design: .rounded))
-                        .foregroundColor(.green)
+                        .foregroundColor(.maroon)
                         .shadow(color: .black.opacity(0.3), radius: 4)
                     
                     Text(phrases[currentPhraseIndex])
@@ -190,23 +188,16 @@ struct CounterView: View {
             Button("Reset Today") {
                 currentCount = 0
                 currentPhraseIndex = 0
-                saveCurrentCountToEntries()  // Also save on reset
             }
             .font(.headline)
-            .foregroundColor(.red.opacity(0.7))
+            .foregroundColor(.maroon.opacity(0.7))
             .padding(.top, 12)
             
             Spacer(minLength: 80)
         }
         .padding(.horizontal, 20)
-        .background(LinearGradient(colors: [.white, Color.green.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .onAppear {
-            checkAndResetIfNewDay()
-            saveCurrentCountToEntries()  // Ensure sync when appearing
-        }
-        .onChange(of: currentCount) { _ in
-            saveCurrentCountToEntries()  // Also save on any change
-        }
+        .background(LinearGradient(colors: [.white, Color.maroon.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .onAppear(perform: checkAndResetIfNewDay)
     }
     
     private func checkAndResetIfNewDay() {
@@ -218,28 +209,6 @@ struct CounterView: View {
             currentCount = 0
             currentPhraseIndex = 0
             lastDateString = todayStr
-        }
-    }
-    
-    // NEW: Save current count to persistent entries
-    private func saveCurrentCountToEntries() {
-        var entries: [TasbeehEntry] = []
-        
-        // Load existing entries
-        if let decoded = try? JSONDecoder().decode([TasbeehEntry].self, from: entriesData) {
-            entries = decoded
-        }
-        
-        // Find today's entry or create new
-        if let todayIndex = entries.firstIndex(where: { Calendar.current.isDateInToday($0.date) }) {
-            entries[todayIndex] = TasbeehEntry(date: Date(), count: currentCount)
-        } else {
-            entries.append(TasbeehEntry(date: Date(), count: currentCount))
-        }
-        
-        // Save back
-        if let encoded = try? JSONEncoder().encode(entries) {
-            entriesData = encoded
         }
     }
 }
@@ -265,10 +234,10 @@ struct ProgressView: View {
                     .font(.title2)
                 Text("\(todayCount)")
                     .font(.system(size: 80, weight: .bold, design: .rounded))
-                    .foregroundColor(.green)
+                    .foregroundColor(.maroon)
             }
             .padding(40)
-            .background(Color.green.opacity(0.08))
+            .background(Color.maroon.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 24))
             
             Text("Keep going — consistency builds habits")
