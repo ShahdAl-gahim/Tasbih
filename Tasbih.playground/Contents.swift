@@ -11,7 +11,7 @@ struct TasbeehEntry: Codable, Identifiable {
 
 // MARK: - Root Container
 struct TasbeehAppView: View {
-    @State private var selectedTab: Tab = .tasbeeh  // Start on main counter
+    @State private var selectedTab: Tab = .tasbeeh  // Start on Tasbeeh
     
     enum Tab {
         case learn, tasbeeh, progress
@@ -40,9 +40,11 @@ struct TasbeehAppView: View {
                         Spacer()
                         tabButton(.progress, icon: "chart.bar.fill", label: "Progress")
                     }
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
                 }
             }
+            .ignoresSafeArea(.keyboard)
         }
         .accentColor(.green)
         .preferredColorScheme(.light)
@@ -50,9 +52,9 @@ struct TasbeehAppView: View {
     
     private var tabTitle: String {
         switch selectedTab {
-        case .learn:    return "Learn About Tasbeeh"
-        case .tasbeeh:  return "Tasbeeh"
-        case .progress: return "Your Progress"
+        case .learn:    "Learn About Tasbeeh"
+        case .tasbeeh:  "Tasbeeh"
+        case .progress: "Your Progress"
         }
     }
     
@@ -76,10 +78,7 @@ struct TasbeehAppView: View {
     }
 }
 
-// ────────────────────────────────────────────────
-// Education, Counter, Progress views (same as before, minor cleanups)
-// ────────────────────────────────────────────────
-
+// MARK: - Education View
 struct EducationView: View {
     var body: some View {
         ScrollView {
@@ -93,8 +92,8 @@ struct EducationView: View {
                     .font(.title2.bold())
                 
                 Text("Tasbeeh (Tasbih) is a form of dhikr — remembrance of Allah — in Islam. It involves glorifying Allah by repeating phrases like “SubhanAllah” (Glory be to Allah).")
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 
                 Text("How is it traditionally done?")
                     .font(.title3.bold())
@@ -125,77 +124,89 @@ struct EducationView: View {
     }
 }
 
+// MARK: - Counter View – larger tasbih_beads image
+// MARK: - Counter View – saves to entries for ProgressView
 struct CounterView: View {
     @AppStorage("tasbeeh_currentCount") private var currentCount: Int = 0
     @AppStorage("tasbeeh_lastDate") private var lastDateString: String = ""
+    @AppStorage("tasbeeh_entries") private var entriesData: Data = Data()  // ← Add this to save here
     
     let phrases = ["SubhanAllah", "Alhamdulillah", "Allahu Akbar"]
     @State private var currentPhraseIndex = 0
     
     var body: some View {
-        VStack(spacing: 40) {
-            // Title moved to navigation bar
+        VStack(spacing: 20) {
+            Spacer(minLength: 60)
+            
             ZStack {
-                ForEach(0..<99) { index in
-                    Circle()
-                        .fill(index < currentCount ? Color.green.opacity(0.75) : Color.gray.opacity(0.25))
-                        .frame(width: 20, height: 20)
-                        .offset(
-                            x: CGFloat(cos(Double(index) * .pi * 2 / 99)) * 130,
-                            y: CGFloat(sin(Double(index) * .pi * 2 / 99)) * 130
-                        )
-                        .animation(.easeOut(duration: 0.25), value: currentCount)
+                // Your beads image – unchanged
+                if let url = Bundle.main.url(forResource: "tasbih_beads", withExtension: "png"),
+                   let uiImage = UIImage(contentsOfFile: url.path) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .frame(width: 580, height: 480)
+                } else {
+                    Text("Image load failed")
+                        .foregroundColor(.red)
                 }
                 
+                // Tappable overlay – unchanged
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: 580, height: 480)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        currentCount += 1
+                        
+                        if currentCount % 33 == 0 && currentCount > 0 {
+                            currentPhraseIndex = (currentPhraseIndex + 1) % 3
+                        }
+                        
+                        saveCurrentCountToEntries()  // ← NEW: save every tap
+                    }
+                
+                // Central count + phrase – unchanged
                 VStack(spacing: 8) {
                     Text("\(currentCount)")
-                        .font(.system(size: 90, weight: .bold, design: .rounded))
+                        .font(.system(size: 80, weight: .bold, design: .rounded))
                         .foregroundColor(.green)
+                        .shadow(color: .black.opacity(0.3), radius: 4)
                     
                     Text(phrases[currentPhraseIndex])
                         .font(.title2)
-                        .foregroundColor(.primary.opacity(0.85))
+                        .foregroundColor(.primary.opacity(0.9))
+                        .shadow(color: .black.opacity(0.2), radius: 2)
                 }
+                .offset(y: -80)
             }
-            .frame(height: 320)
+            .frame(height: 420)
             
-            Button(action: {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.prepare()
-                generator.impactOccurred()
-                
-                currentCount += 1
-                
-                if currentCount % 33 == 0 && currentCount > 0 {
-                    currentPhraseIndex = (currentPhraseIndex + 1) % 3
-                }
-            }) {
-                Circle()
-                    .fill(Color.green.opacity(0.12))
-                    .frame(width: 240, height: 240)
-                    .overlay(
-                        Image(systemName: "hand.tap.fill")
-                            .font(.system(size: 70))
-                            .foregroundColor(.green)
-                    )
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            Text("Tap the circle to count")
+            Text("Tap anywhere on the beads to count")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+                .padding(.top, 16)
             
             Button("Reset Today") {
                 currentCount = 0
                 currentPhraseIndex = 0
+                saveCurrentCountToEntries()  // Also save on reset
             }
             .font(.headline)
             .foregroundColor(.red.opacity(0.7))
-            .padding(.top, 20)
+            .padding(.top, 12)
+            
+            Spacer(minLength: 80)
         }
-        .padding()
-        .background(LinearGradient(colors: [.white, Color.green.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .onAppear(perform: checkAndResetIfNewDay)
+        .padding(.horizontal, 20)
+        .background(LinearGradient(colors: [.white, Color.green.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .onAppear {
+            checkAndResetIfNewDay()
+            saveCurrentCountToEntries()  // Ensure sync when appearing
+        }
+        .onChange(of: currentCount) { _ in
+            saveCurrentCountToEntries()  // Also save on any change
+        }
     }
     
     private func checkAndResetIfNewDay() {
@@ -209,8 +220,31 @@ struct CounterView: View {
             lastDateString = todayStr
         }
     }
+    
+    // NEW: Save current count to persistent entries
+    private func saveCurrentCountToEntries() {
+        var entries: [TasbeehEntry] = []
+        
+        // Load existing entries
+        if let decoded = try? JSONDecoder().decode([TasbeehEntry].self, from: entriesData) {
+            entries = decoded
+        }
+        
+        // Find today's entry or create new
+        if let todayIndex = entries.firstIndex(where: { Calendar.current.isDateInToday($0.date) }) {
+            entries[todayIndex] = TasbeehEntry(date: Date(), count: currentCount)
+        } else {
+            entries.append(TasbeehEntry(date: Date(), count: currentCount))
+        }
+        
+        // Save back
+        if let encoded = try? JSONEncoder().encode(entries) {
+            entriesData = encoded
+        }
+    }
 }
 
+// MARK: - Progress View
 struct ProgressView: View {
     @AppStorage("tasbeeh_entries") private var entriesData: Data = Data()
     
@@ -224,6 +258,8 @@ struct ProgressView: View {
     
     var body: some View {
         VStack(spacing: 40) {
+            Spacer()
+            
             VStack(spacing: 16) {
                 Text("Today")
                     .font(.title2)
@@ -250,10 +286,10 @@ struct ProgressView: View {
 // ────────────────────────────────────────────────
 
 let hosting = UIHostingController(rootView: TasbeehAppView()
-    .ignoresSafeArea()
+    .ignoresSafeArea(edges: .bottom)
 )
 
-hosting.preferredContentSize = CGSize(width: 414, height: 896)  // iPhone size – change to 500x1000 if needed
+hosting.preferredContentSize = CGSize(width: 414, height: 896)
 
 PlaygroundPage.current.liveView = hosting
 PlaygroundPage.current.needsIndefiniteExecution = true
